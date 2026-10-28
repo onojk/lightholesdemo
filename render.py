@@ -55,6 +55,7 @@ ARM_EL, ARM_DIST, ARM_SHIFT = 40.0, 3.1, -0.16
 LIFT_EL = 16.0                   # degrees the camera rises over the key change's first bar
 LABEL_W, LABEL_H, LABEL_SIZE = 400, 72, 46
 FINALE_EL, FINALE_SPEED, FINALE_DIST = 20.0, 0.12, 6.3
+WHEEL_IN = 0.6                   # final chorus: s for a formed wheel to fall into its slot
 OUTRO_LINES = ["The survivors of a sieve", "are the places where the light gets through."]
 
 ATLAS_W, ATLAS_H, ATLAS_FONT = 2400, 80, 56        # one text-atlas cell; DejaVu Sans Mono advance 0.602 em
@@ -600,8 +601,11 @@ class SieveShow:
     the wheels turn, landing on one alignment per beat, where the beam reaches the cell and the
     line's cell for that candidate lights. Everything here is read off data/holes.json."""
     def __init__(self, sync, line, wheels_al, geo, slots, t_strike, t_strike_end, strike_dt,
-                 t_wrap, wrap_gap, t_align, downbeat0):
+                 t_wrap, wrap_gap, t_align, downbeat0, wheels_in=None):
+        """wheels_in: if set, the wheels arrive already formed at that time (falling into
+        their slots over WHEEL_IN s) instead of curling out of the stations' periods."""
         self.sync, self.n, self.geo, self.slots = sync, line["n"], geo, slots
+        self.wheels_in = wheels_in
         self.stations = line["stations"]
         beat = 60 / sync.tempo
         # strike times: (cell index 0-based, time, station k)
@@ -682,11 +686,19 @@ class SieveShow:
             xb = (t - t0) / WRAP_BEND
             sx_, sy_, R_, Rf = self.slots["xs"][k], self.slots["y"], self.slots["R"], None
             ring0 = p * g[2] * scale0 / (2 * np.pi)
+            if self.wheels_in is not None:
+                x = (t - self.wheels_in) / WHEEL_IN
+                if x >= 0:
+                    e = ease(x)
+                    whl[k] = (sx_, sy_ + 0.45 * (1 - e) ** 2, R_, float(np.clip(x * 3, 0, 1)))
+                    whl2[k] = (p, cand % p, 0.0, 0.0)
+                xb = xm = -1.0
             if 0 <= xb < 1.0:
                 w = ease(xb)
                 strip[nstrip] = (max(w, 0.02), A0[0], A0[1] + 0.06 * ease(xb * 2), scale0)
                 strip2[nstrip] = (p, float(np.clip(xb * 4, 0, 1)), 0, 0); nstrip += 1
-            xm = (t - t0 - WRAP_BEND) / WRAP_MOVE
+            if self.wheels_in is None:
+                xm = (t - t0 - WRAP_BEND) / WRAP_MOVE
             if xm >= 0:
                 e = ease(xm)
                 c0 = np.array([A0[0], A0[1] + 0.06 - ring0])
@@ -703,6 +715,8 @@ class SieveShow:
             opens.append(o)
         # the beam: lamp -> wheels (by slot, left to right) -> cell; lit from the first landing
         lamp_on = float(np.clip((t - (self.land[0] - 1.2)) / 0.6, 0, 1))
+        if self.wheels_in is not None:
+            lamp_on = float(np.clip((t - self.wheels_in) / WHEEL_IN, 0, 1))
         I = [lamp_on]
         for k in range(len(self.stations)):
             I.append(I[-1] * opens[k])
@@ -1176,22 +1190,35 @@ class Film:
                      shift=ARM_SHIFT, inverse=True)
 
     # ---------------------------------------------------------------- final chorus: everything lit
+    def finale_bars(self):
+        """The final chorus's bars from its first downbeat (the section start): the layers
+        come in one per bar, wheels, LEDs, tower, then the number line."""
+        s = self.sync.by_name["final_chorus"]
+        bt = self.sync.beat_t
+        i0 = int(np.argmin(np.abs(bt - s["start"])))
+        return bt[i0::4]
+
     def big_show(self):
+        """The final chorus's sieve: the wheels (2..19) arrive formed on the first bar and land
+        one alignment per beat from there; the line 1..400 arrives on the fourth bar with every
+        hole open, and the stations strike it from "You build the dark to find the bright" to
+        "you pay before you see"."""
         if "final" not in self.shows:
             c, b = self.sync.cues, 60 / self.sync.tempo
-            s = self.sync.by_name["final_chorus"]
+            bars = self.finale_bars()
             geo = (BIG_X0, BIG_Y0, LINE_PITCH, BIG_ROW, 100)
             self.shows["final"] = SieveShow(self.sync, self.H["big"], self.H["wheels"]["final"]["alignments"], geo,
-                                            FINAL_WHEELS, c["stations2"], c["every_gear2"] - 0.12, None,
-                                            c["every_gear2"], b / 4, c["align2"], s["start"])
+                                            FINAL_WHEELS, c["build_dark2"], c["pay_see2"] - 0.12, None,
+                                            c["build_dark2"], b / 4, bars[0] + 0.05, bars[0], wheels_in=bars[0])
         return self.shows["final"]
 
     def uniforms_finale(self, s, u):
         t, c = u["t"], self.sync.cues
         show = self.big_show()
-        C, w = show.state(t, np.ones(400), BIG_Y0 + 0.10)
-        C[0, :, 3] *= 1.0
-        leds, n, meter, flare, smooth, hist = self.twinkle_state(t, s["start"] + 0.3)
+        bars = self.finale_bars()
+        lay = [float(np.clip((t - bars[k]) / 0.5, 0, 1)) for k in range(4)]   # wheels, LEDs, tower, line
+        C, w = show.state(t, np.full(400, ease(lay[3])), BIG_Y0 + 0.10)
+        leds, n, meter, flare, smooth, hist = self.twinkle_state(t, bars[1])
         T = self.H["twinkle"]
         out = dict(w)
         out.update({"tex_cells": C, "line_geo": (BIG_X0, BIG_Y0, LINE_PITCH, BIG_ROW), "line_n": 400.0,
@@ -1200,7 +1227,8 @@ class Film:
                     "leds": leds, "n_led": len(T["leds"]), "cand_n": float(n), "meter": float(meter),
                     "flare": float(flare), "bloom": 0.9 + 0.9 * u["swell"],
                     "primes": np.array(sorted({L["p"] for L in T["leds"]}), "f4"),
-                    "end_a": float(np.clip((s["end"] - t) / 1.5, 0, 1))})
+                    "end_a": float(np.clip((s["end"] - t) / 1.5, 0, 1)),
+                    "led_a": ease(lay[1]), "tower_a": ease(lay[2]), "line_a": ease(lay[3])})
         return out
 
     def camera_finale(self, s, u):
