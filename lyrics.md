@@ -3,7 +3,8 @@
 As sung, from a transcript of the song (faster-whisper medium.en, word timestamps, Oct 28;
 the opening re-run in short overlapping windows, because the full pass ran it together).
 Times are the first word of each line, in m:ss. Where the transcriber misheard a word, the
-line gives the word the book and the song mean, and the note gives what was heard.
+line gives the written lyric (all checked by the author, Oct 28), and the note gives what
+was heard.
 
 [Intro, 0:00: instrumental fade-in, about 5 s]
 
@@ -24,7 +25,7 @@ and the holes were never free.                       0:33
 [Instrumental, 0:37, about 9 s]
 
 [Verse: Legendre, the Wander, Selberg, 0:46]
-The legendary Captain Ledger                         0:46   (as heard; Legendre and his ledger)
+Legendre's ledger                                    0:46   (heard "The legendary Captain Ledger")
 took away and then put back,                         0:48
 plus and minus on an abacus                          0:51
 to keep the count on track.                          0:53
@@ -45,10 +46,10 @@ and Lehmer wound it back by hand to read what it had found to do.   1:41   (hear
 
 [Verse: RSA-129 and TWINKLE, 1:46]
 Well, they rolled a lock in '77,                     1:46
-said it lasts ten thousand lifetimes long.           1:51
+said it'd last ten thousand lifetimes long.        1:51   (heard "it lasts")
 Then the volunteers came,                            1:55
 sixteen hundred machines,                            1:57
-in seventeen years along.                            2:01
+and seventeen years along.                           2:01   (heard "In")
 The message read the magic words,                    2:07
 "squeamish ossifrage".                               2:09   (heard "squeamish arse of rage")
 They never broke the wall,                           2:11

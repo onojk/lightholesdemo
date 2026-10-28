@@ -12,7 +12,7 @@ half-beat grid.
 
 Drafted from a transcript of the song (faster-whisper medium.en, word timestamps, Oct 28;
 the opening re-run in short overlapping windows, because the full pass ran 0:05-0:37 into one
-segment); every sung section starts on its first sung word. Awaiting the author's check.
+segment); every sung section starts on its first sung word. Checked by the author, Oct 28.
 """
 import json, os
 import numpy as np
@@ -61,9 +61,10 @@ CUES = [
     ("wound_back",       101.54, "verse 3 'and Lehmer wound it back by hand' (heard 'led my wounded')"),
     ("read_found",       104.32, "verse 3 'to read what it had found': the factors"),
     ("lock_77",          106.88, "verse 4 'they rolled a lock in '77' ('77' 108.74)"),
+    ("lifetimes",        111.36, "verse 4 'said it'd last ten thousand lifetimes long' (heard 'it lasts')"),
     ("volunteers",       115.74, "verse 4 'Then the volunteers came'"),
     ("machines",         117.54, "verse 4 'sixteen hundred machines'"),
-    ("seventeen",        121.52, "verse 4 'in seventeen years along'"),
+    ("seventeen",        121.52, "verse 4 'and seventeen years along' (heard 'In')"),
     ("magic_words",      127.28, "verse 4 'The message read the magic words'"),
     ("ossifrage",        129.96, "verse 4 'squeamish ossifrage' (129.96-131.52)"),
     ("never_broke",      131.76, "verse 4 'They never broke the wall, they only paid its wage'"),
@@ -113,7 +114,7 @@ def build():
     ticks = [t for t, o in zip(tk["t"], tk["grid_offset"])
              if o <= TICK_ON_GRID and any(s["name"] in TICK_SECTIONS and s["start"] <= t < s["end"]
                                           for s in secs) and t < music_end]
-    json.dump({"source": "cache/features.json", "confirmed": "draft from transcript, 2026-10-28", "sections": secs,
+    json.dump({"source": "cache/features.json", "confirmed": "transcript, checked by the author, 2026-10-28", "sections": secs,
                "cues": [{"name": n, "t": t, "why": w} for n, t, w in CUES],
                "ticks": ticks, "music_end": music_end,
                "outro_words": [{"line": l, "word": w, "start": a, "end": b} for l, w, a, b in OUTRO_WORDS]},
