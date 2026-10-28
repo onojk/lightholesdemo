@@ -100,6 +100,29 @@ The pipeline (offline GLSL renderer, audio analysis, ffmpeg mux) is adapted from
 earlier videos, [tentimesdemo](https://github.com/onojk/tentimesdemo) and
 [laser-beam-demo](https://github.com/onojk/laser-beam-demo).
 
+## The 1080p render (Oct 28, 2026)
+
+`renders/light_holes_1080p.mp4` (not committed: `renders/` is ignored), from commit `ce4464d`:
+
+- **Format:** 1920×1080, 30 fps, H.264 (CRF 22), with AAC 320k audio.
+- **Length:** 240.000 s (4:00.00), 7,200 frames; the audio stream is 240.000 s too.
+- **Size:** 49,964,938 bytes (47.6 MiB).
+- **Render time:** 21 min 33 s wall clock on an Intel Lunar Lake iGPU (Mesa), about 13.5 min of it
+  rendering. `tools/lpw_guard.sh` paused it for 8 min while a lumens-per-watt sealed timed run was
+  in progress, so that run's wall-clock results weren't skewed.
+
+Sync checks on the muxed file:
+
+- **Audio:** the muxed track cross-correlates with the source WAV at **0 samples' lag**, at 0:30
+  and at 3:56.
+- **The clock:** it steps on the beats of the tail, from the last sung word to the last beat. Its
+  last step shows from frame 7155 (3:58.500), one frame after the last tracked beat (3:58.467),
+  and nothing in the clock region changes after it until the cut.
+- **The hard stop:** the picture is fully black (max pixel 0) from 3:58.80, the first frame
+  after the song's hard stop (3:58.767), through the silent tail to 4:00.
+- **Determinism:** stills re-render byte-identical, and the same frames come out of
+  tentimesdemo's venv and this repo's `.venv`.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). This covers the code and data only. The song belongs to its
