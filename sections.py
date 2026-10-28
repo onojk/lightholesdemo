@@ -21,16 +21,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FEATURES = os.path.join(HERE, "cache", "features.json")
 OUT = os.path.join(HERE, "cache", "sections.json")
 TICK_ON_GRID = 0.05               # s from the half-beat grid
-TICK_SECTIONS = {"intro", "outro"}
+TICK_SECTIONS = set()            # no clock sample in this song: no tick sections
 
 # (name, scene, start s, why): each start is the first sung word of the section, from the
 # transcript, snapped to the nearest beat. Suno sang no Eratosthenes verse and no second
 # chorus; the brief's verse-1 sieve rides chorus 1 ("the stations walk the line") and the
 # 9 s break after it stands in for the guitar solo.
 RAW = [
-    ("intro",        "line",     0.0,    "fade-in from -48 dBFS, no voice"),
-    ("prechorus",    "static",   5.20,   "'No one asked the survivors' (5.20)"),
-    ("chorus1",      "gears",    14.80,  "'It's light through the holes' (14.80)"),
+    ("intro",        "sieve",     0.0,    "fade-in from -48 dBFS, no voice"),
+    ("prechorus",    "sieve",   5.20,   "'No one asked the survivors' (5.20)"),
+    ("chorus1",      "sieve",    14.80,  "'It's light through the holes' (14.80)"),
     ("solo",         "strobe",   37.0,   "instrumental after 'never free' ends (35.94-~37), to 46.04"),
     ("verse2",       "legendre", 46.04,  "'The legendary Captain Ledger' (Legendre's ledger)"),
     ("verse3",       "lehmer",   77.24,  "'1933, the World's Fair'"),
@@ -48,6 +48,8 @@ CUES = [
     ("every_gear",       19.74,  "chorus 1 'every gear in its own time'"),
     ("align",            22.32,  "chorus 1 'wait until they all align' ('align' 23.88)"),
     ("build_dark",       24.62,  "chorus 1 'You build the dark to find the bright'"),
+    ("pay_see",          26.92, "chorus 1 'you pay before you see' ('pay' 27.80)"),
+    ("light_holes1b",    29.68, "chorus 1 'It's light through the holes' (second time)"),
     ("never_free",       33.30,  "chorus 1 'and the holes were never free'"),
     ("abacus",           51.02,  "verse 2 'Plus and minus on an abacus'"),
     ("wander",           56.18,  "verse 2 'The signs began to wander'"),
@@ -76,12 +78,22 @@ CUES = [
     ("wrong",            162.24, "bridge 'I was wrong in the open'"),
     ("three_point_four", 167.24, "bridge 'The formula said three-point-four' ('3.4' 168.60-169.06+)"),
     ("one_point_four",   169.76, "bridge 'the primes came back around'"),
+    ("ten_times",        172.26, "hook 'Ten times, not a hundred': the lift (the key rises here)"),
+    ("reach_out",        174.24, "hook 'reach out'"),
+    ("not_too_far",      175.48, "hook 'but not too far' (to 176.50)"),
     ("center_dark",      177.18, "hook 'and the center stays dark'"),
     ("balanced",         179.84, "hook 'where the balanced numbers are' (to ~183)"),
+    ("stations2",        187.98, "final chorus 'The stations walk the line'"),
+    ("every_gear2",      190.00, "final chorus 'every gear in its own time'"),
+    ("align2",           192.76, "final chorus 'wait until they all align'"),
+    ("build_dark2",      194.96, "final chorus 'You build the dark to find the bright'"),
+    ("pay_see2",         197.48, "final chorus 'you pay before you see'"),
+    ("light_holes2",     200.32, "final chorus 'It's light through the holes' (second time)"),
     ("price_mystery",    203.76, "final chorus 'and the price is the mystery' (to 206.90)"),
     ("outro_line1",      213.22, "'The survivors of a sieve' (213.22-217.44)"),
     ("outro_line2",      217.44, "'are the places where the light gets through' (to 226.88)"),
     ("last_word",        226.16, "'through' (226.16-226.88): the typed text completes; the tail plays to the hard stop"),
+    ("tail",             226.88, "the last sung word ends; the clock steps on each beat from here to the last (238.47)"),
 ]
 # the outro's sung words as typed on screen, with their transcript times (start, end); the
 # transcript heard "sin" for "sieve". "are" is held, so its span is long (217.44-222.30).
@@ -92,7 +104,8 @@ OUTRO_WORDS = [
     (1, "where", 224.24, 224.74), (1, "the", 224.74, 225.02), (1, "light", 225.02, 225.36),
     (1, "gets", 225.36, 226.16), (1, "through.", 226.16, 226.88),
 ]
-MUSIC_END_RAW = 238.47            # last tracked beat before the hard stop at 238.77 (-14 -> -76 dBFS in 0.5 s)
+MUSIC_END_RAW = 238.47            # last tracked beat before the hard stop (-14 -> -76 dBFS in 0.5 s)
+HARD_STOP_DB = -40.0              # the hard stop: the first frame after the last beat under this
 
 def build():
     f = json.load(open(FEATURES))
@@ -114,7 +127,10 @@ def build():
     ticks = [t for t, o in zip(tk["t"], tk["grid_offset"])
              if o <= TICK_ON_GRID and any(s["name"] in TICK_SECTIONS and s["start"] <= t < s["end"]
                                           for s in secs) and t < music_end]
-    json.dump({"source": "cache/features.json", "confirmed": "transcript, checked by the author, 2026-10-28", "sections": secs,
+    db = np.array(f["rms_raw_dbfs"])
+    i0 = int(music_end * f["fps"])
+    hard_stop = round((i0 + int(np.argmax(db[i0:] < HARD_STOP_DB))) / f["fps"], 3)
+    json.dump({"hard_stop": hard_stop, "source": "cache/features.json", "confirmed": "transcript, checked by the author, 2026-10-28", "sections": secs,
                "cues": [{"name": n, "t": t, "why": w} for n, t, w in CUES],
                "ticks": ticks, "music_end": music_end,
                "outro_words": [{"line": l, "word": w, "start": a, "end": b} for l, w, a, b in OUTRO_WORDS]},
@@ -148,4 +164,4 @@ if __name__ == "__main__":
             print(f"\n{name} ticks: {len(tt)}, {mmss(tt[0])} .. {mmss(tt[-1])}")
     for c in CUES:
         print(f"cue {c[0]:14s} {mmss(c[1])}  {c[2]}")
-    print(f"music ends {mmss(music_end)}\nwrote {OUT}")
+    print(f"music ends {mmss(music_end)} (last beat); hard stop {mmss(json.load(open(OUT))['hard_stop'])}\nwrote {OUT}")
