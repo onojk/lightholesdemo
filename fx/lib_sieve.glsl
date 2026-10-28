@@ -86,7 +86,9 @@ vec3 sieve_machine(vec2 p, vec3 c) {
     // the photocell: lights with the light that reaches it; the candidate it saw above it
     vec2 CP = vec2(cell_x, beam_y);
     vec2 q = abs(p - CP);
-    float box = step(q.x, 0.018) * step(q.y, 0.045);
+    float on = 0.0;                                         // the cell comes with the first wheel
+    for (int k = 0; k < 8; k++) if (k < n_whl) on = max(on, whl[k].w);
+    float box = step(q.x, 0.018) * step(q.y, 0.045) * on;
     float I = beam_I[n_whl];
     c += box * (DEEP * 0.9 + (GREEN * 1.3 + WHITE * 0.5) * I * fl);
     c += GREEN * 0.5 * I * fl * glow(length(p - CP), 0.05) * lamp_on;

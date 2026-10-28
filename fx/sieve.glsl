@@ -14,7 +14,7 @@ uniform float decades[11];
 bool is_prime(float n) {
     if (n < 2.0) return false;
     for (float d = 2.0; d * d <= n; d += 1.0)
-        if (mod(n, d) < 0.5) return false;
+        if (abs(n - d * floor(n / d + 0.5)) < 0.5) return false;   // float mod can round to d
     return true;
 }
 
@@ -34,7 +34,7 @@ void main() {
     if (surv_a > 0.0) {
         float col = floor((p.x - line_geo.x) / pitch), n = col + 1.0;
         if (col >= 0.0 && col < 100.0 && is_prime(n)) {
-            float hi = mod(col, 2.0) < 0.5 ? 0.0 : 0.034;
+            float hi = is_prime(n - 1.0) ? 0.034 : 0.0;          // 3 sits next to 2
             c += GREEN * 1.1 * surv_a * gnum(n, p, vec2(line_geo.x + (col + 0.5) * pitch, y + 0.062 + hi), 0.014);
         }
         c += CYAN * 0.8 * surv_a * atext(t_surv, p, vec2(0.0, y - 0.16), 0.028, -1.0);
@@ -47,7 +47,8 @@ void main() {
     if (static_a > 0.0) {
         float f = floor(t * 30.0);
         vec2 g = floor(gl_FragCoord.xy / 2.0);
-        float nz = rnd(g.x + 1931.0 * g.y + 7.3e5 * f);
+        uint hk = uint(g.x) + 1931u * uint(g.y) + 104729u * uint(f);   // integer: floats above 2^24 smear
+        float nz = float(hash(hk ^ uint(seed))) / 4294967295.0;
         float band = 0.35 + 0.65 * exp(-pow((p.y - y) / 0.25, 2.0));
         c = mix(c, DARK * (0.15 + 0.85 * nz) * 0.75, static_a * band);
     }

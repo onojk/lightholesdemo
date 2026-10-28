@@ -54,8 +54,8 @@ void main() {
     c += CYAN * cap_a * atext(t_fair, p, vec2(0.0, 0.90), 0.030, -1.0);
     c += DARK * 1.3 * cap_a * atext(t_fair2, p, vec2(0.0, 0.825), 0.022, -1.0);
     c += TEAL * 1.1 * cap_a * atext(t_N, p, vec2(0.0, 0.70), 0.026, -1.0);
-    c += CYAN * on * atext(t_x, p, vec2(-0.42, 0.58), 0.030, -1.0);
-    c += (CYAN * 0.9 + GREEN * 0.6 * cellv) * on * gcodes(x_codes, x_n, p, vec2(0.08, 0.58), 0.032);
+    c += CYAN * on * atext(t_x, p, vec2(-0.33, 0.58), 0.030, -1.0);
+    c += (CYAN * 0.9 + GREEN * 0.6 * cellv) * on * gcodes(x_codes, x_n, p, vec2(0.0, 0.58), 0.032);
     // what it had found
     c += GREEN * 1.1 * res_a[0] * atext(t_res[0], p, vec2(0.0, -0.58), 0.030, -1.0);
     c += GREEN * 1.3 * res_a[1] * atext(t_res[1], p, vec2(0.0, -0.70), 0.030, -1.0);

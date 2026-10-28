@@ -165,7 +165,8 @@ uniform float line_n, line_cols, cell_aspect, backlight;
 vec3 line_col(vec2 p, vec3 flash_col) {
     float pitch = line_geo.z;
     float col = floor((p.x - line_geo.x) / pitch);
-    float row = floor((line_geo.y + 0.5 * line_geo.w - p.y) / line_geo.w);
+    float rs = line_geo.w > 0.0 ? line_geo.w : 1.0;   // one row: any step
+    float row = floor((line_geo.y + 0.5 * rs - p.y) / rs);
     if (col < 0.0 || col >= line_cols || row < 0.0) return vec3(0.0);
     float idx = row * line_cols + col;
     if (idx >= line_n) return vec3(0.0);
@@ -472,10 +473,25 @@ def text_image(lines, size, w, h, font=FONT_MONO, spacing=0):
     return np.frombuffer(raw, np.uint8).reshape(h, w)
 
 def glyph_atlas():
-    """GLYPHS in fixed cells, one drawtext call each, so every glyph is placed in its cell
-    the same way; the last cell is blank."""
-    cells = [text_image([ch], GLYPH_SIZE, GLYPH_W, GLYPH_H) if ch != " " else np.zeros((GLYPH_H, GLYPH_W), np.uint8)
-             for ch in GLYPHS]
+    """GLYPHS in fixed cells, cut from ONE drawtext call at their monospace slots, so every
+    glyph sits on the same baseline (a comma low, a minus at mid-height); the last is blank."""
+    adv = 0.602 * GLYPH_SIZE
+    x0, w = GLYPH_W, int(GLYPH_W * 2 + adv * len(GLYPHS))
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
+        fh.write(GLYPHS)
+    try:
+        vf = (f"drawtext=fontfile={FONT_MONO}:textfile={fh.name}:fontsize={GLYPH_SIZE}:fontcolor=white:"
+              f"x={x0}:y=(h-text_h)/2:expansion=none")
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"color=c=black:s={w}x{GLYPH_H}",
+                              "-frames:v", "1", "-vf", vf, "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                             capture_output=True, check=True).stdout
+    finally:
+        os.unlink(fh.name)
+    img = np.frombuffer(raw, np.uint8).reshape(GLYPH_H, w)
+    cells = []
+    for k in range(len(GLYPHS)):
+        c = int(round(x0 + (k + 0.5) * adv)) - GLYPH_W // 2
+        cells.append(img[:, c:c + GLYPH_W] if GLYPHS[k] != " " else np.zeros((GLYPH_H, GLYPH_W), np.uint8))
     return np.hstack(cells)
 
 class Atlas:
@@ -819,13 +835,13 @@ class Film:
 
     def intro_visible(self, t):
         """The line ticks in, a decade per half beat over the last ten half beats before the
-        voice, each decade's cells one per 1/32 beat."""
+        voice, each decade's ten cells evenly through its half beat."""
         bt = self.sync.beat_t
         half = np.sort(np.r_[bt, 0.5 * (bt[1:] + bt[:-1])])
         t_pre = self.sync.by_name["prechorus"]["start"]
         h = half[half < t_pre - 1e-3][-10:]
-        b32 = 60 / self.sync.tempo / 8
-        t_on = np.array([h[k // 10] + (k % 10) * b32 for k in range(100)])
+        step = 60 / self.sync.tempo / 2 / 10                   # a decade's ten cells fill its half beat
+        t_on = np.array([h[k // 10] + (k % 10) * step for k in range(100)])
         return np.clip((t - t_on) / 0.05, 0, 1), t_on
 
     def uniforms_sieve(self, s, u):
